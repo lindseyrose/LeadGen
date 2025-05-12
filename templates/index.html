@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Government AI Leads</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">Government AI Leads</span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col-auto">
+                <button id="scanBtn" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Scan for New Opportunities
+                </button>
+            </div>
+            <div class="col-auto">
+                <div class="dropdown">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                        <li><a class="dropdown-item" href="#" id="exportCSV">Export to CSV</a></li>
+                        <li><a class="dropdown-item" href="#" id="exportJSON">Export to JSON</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="alertArea" class="row mb-4" style="display: none;">
+            <div class="col">
+                <div class="alert" role="alert"></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <div id="leadsList" class="row">
+                    <!-- Leads will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showAlert(message, type = 'danger') {
+            const alertArea = document.getElementById('alertArea');
+            const alert = alertArea.querySelector('.alert');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alertArea.style.display = 'block';
+        }
+
+        function hideAlert() {
+            document.getElementById('alertArea').style.display = 'none';
+        }
+
+        document.getElementById('scanBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('scanBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Scanning...';
+            hideAlert();
+
+            try {
+                const response = await fetch('/api/scan');
+                const data = await response.json();
+                
+                if (data.status === 'error') {
+                    showAlert(data.message || 'Error scanning opportunities');
+                } else {
+                    showAlert('Successfully scanned for new opportunities!', 'success');
+                    updateLeads();
+                }
+            } catch (error) {
+                showAlert('Error scanning opportunities: ' + error.message);
+                console.error('Error scanning opportunities:', error);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Scan for New Opportunities';
+            }
+        });
+
+        async function updateLeads() {
+            try {
+                const response = await fetch('/api/leads');
+                const data = await response.json();
+                const leadsContainer = document.getElementById('leadsList');
+                
+                if (!data.leads || data.leads.length === 0) {
+                    leadsContainer.innerHTML = `
+                        <div class="col">
+                            <div class="alert alert-info">No leads found. Try scanning for opportunities!</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                leadsContainer.innerHTML = data.leads.map(lead => `
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card lead-card">
+                            <div class="card-body">
+                                <h5 class="card-title">${lead.agency}</h5>
+                                <h6 class="card-subtitle mb-2 text-muted">${lead.name}</h6>
+                                <p class="card-text">
+                                    <strong>Title:</strong> ${lead.title}<br>
+                                    ${lead.contact_info?.email ? `<strong>Email:</strong> ${lead.contact_info.email}<br>` : ''}
+                                    ${lead.contact_info?.phone ? `<strong>Phone:</strong> ${lead.contact_info.phone}<br>` : ''}
+                                    ${lead.office ? `<strong>Office:</strong> ${lead.office}<br>` : ''}
+                                    ${lead.description ? `<strong>Description:</strong> ${lead.description}<br>` : ''}
+                                    ${lead.contact_info?.url ? `<a href="${lead.contact_info.url}" target="_blank" class="btn btn-sm btn-outline-primary mt-2"><i class="bi bi-link-45deg"></i> View Source</a>` : ''}
+                                </p>
+                                ${lead.validationMessages ? `
+                                    <div class="mt-3">
+                                        ${lead.validationMessages.map(msg => `
+                                            <div class="alert alert-${msg.type} py-1 px-2 mb-2">${msg.message}</div>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                showAlert('Error loading leads: ' + error.message);
+                console.error('Error updating leads:', error);
+            }
+        }
+
+        function downloadCSV(leads) {
+            const headers = ['Agency', 'Name', 'Title', 'Email', 'Phone', 'Office', 'Description', 'Source', 'Date Added'];
+            const rows = leads.map(lead => [
+                lead.agency,
+                lead.name,
+                lead.title,
+                lead.contact_info?.email || '',
+                lead.contact_info?.phone || '',
+                lead.office,
+                lead.description,
+                lead.source,
+                lead.dateAdded
+            ]);
+
+            let csvContent = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csvContent += row.map(cell => 
+                    '"' + (cell || '').toString().replace(/"/g, '""') + '"'
+                ).join(',') + '\n';
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `government-ai-leads-${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        function downloadJSON(leads) {
+            const jsonContent = JSON.stringify(leads, null, 2);
+            const blob = new Blob([jsonContent], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `government-ai-leads-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
+
+        document.getElementById('exportCSV').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/leads');
+                const data = await response.json();
+                if (data.leads && data.leads.length > 0) {
+                    downloadCSV(data.leads);
+                } else {
+                    showAlert('No leads available to export');
+                }
+            } catch (error) {
+                showAlert('Error exporting leads: ' + error.message);
+                console.error('Error exporting leads:', error);
+            }
+        });
+
+        document.getElementById('exportJSON').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/leads');
+                const data = await response.json();
+                if (data.leads && data.leads.length > 0) {
+                    downloadJSON(data.leads);
+                } else {
+                    showAlert('No leads available to export');
+                }
+            } catch (error) {
+                showAlert('Error exporting leads: ' + error.message);
+                console.error('Error exporting leads:', error);
+            }
+        });
+
+        // Initial load
+        updateLeads();
+    </script>
+</body>
+</html>

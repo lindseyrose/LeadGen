@@ -1,0 +1,54 @@
+.lead-card {
+    margin-bottom: 1rem;
+    transition: transform 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.lead-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.alert {
+    margin-bottom: 1rem;
+}
+
+.validation-message {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.spinner-border {
+    margin-right: 0.5rem;
+}
+
+.navbar {
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-primary {
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+}
+
+.card-title {
+    color: #2c3e50;
+    margin-bottom: 0.75rem;
+}
+
+.card-subtitle {
+    color: #7f8c8d;
+    margin-bottom: 1rem;
+}
+
+.card-text {
+    color: #34495e;
+    line-height: 1.6;
+}
+
+.alert-info {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+    color: #495057;
+}
